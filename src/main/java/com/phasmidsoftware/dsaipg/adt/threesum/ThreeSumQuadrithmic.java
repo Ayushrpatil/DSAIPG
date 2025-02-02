@@ -5,7 +5,6 @@
 package com.phasmidsoftware.dsaipg.adt.threesum;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -61,9 +60,35 @@ class ThreeSumQuadrithmic implements ThreeSum {
      * or {@code null} if no such triple can be found.
      */
     Triple getTriple(int i, int j) {
-        // TO BE IMPLEMENTED  : use binary search to find the third element
-        // END SOLUTION
+        int target = -(a[i] + a[j]); // The required third element
+        int k = binarySearch(target, j + 1, length - 1); // Search in the range [j+1, length-1]
+
+        if (k != -1) {
+            return new Triple(a[i], a[j], a[k]);
+        }
         return null;
+    }
+
+    /**
+     * Helper method to perform binary search for the target value in the array.
+     *
+     * @param target the value to search for.
+     * @param low    the starting index of the search range.
+     * @param high   the ending index of the search range.
+     * @return the index of the target value if found, otherwise -1.
+     */
+    private int binarySearch(int target, int low, int high) {
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+            if (a[mid] == target) {
+                return mid; // Target found
+            } else if (a[mid] < target) {
+                low = mid + 1; // Search in the right half
+            } else {
+                high = mid - 1; // Search in the left half
+            }
+        }
+        return -1; // Target not found
     }
 
     private final int[] a;

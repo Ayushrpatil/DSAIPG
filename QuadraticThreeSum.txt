@@ -1,0 +1,66 @@
+The quadratic method for solving the ThreeSum proble wprls because it redices the search spce efficiently compared to the cubic approach by leveraging sorting and the two pointer technnique.
+Why the Quadratic Method Works
+1)Sorting for Efficiency
+The array is sorted first, which allows us to systematically search for valid triplets.
+Sorting takes 𝑂(𝑁 log𝑁)
+O(NlogN), but it's a one-time cost.
+
+2)Fixing a Middle Element
+Instead of using three nested loops 
+)
+O(N 
+3
+ )), we fix one element at index 
+𝑗
+j and use two pointers (left and right) to find the other two elements.
+Two-Pointer Technique (
+𝑂
+(
+𝑁
+)
+O(N) per fixed element)
+
+The two pointers (left at the start, right at the end) move towards each other while searching for pairs that sum to 
+−
+𝑎
+[
+𝑗
+]
+−a[j].
+If the sum is too small, move left rightward.
+If the sum is too large, move right leftward.
+If the sum is zero, record the triplet and move both pointers (while avoiding duplicates).
+Overall Complexity: 
+𝑂
+(
+𝑁
+2
+)
+O(N 
+2
+ )
+
+Since we iterate through 
+𝑁
+N fixed elements and perform an 
+𝑂
+(
+𝑁
+)
+O(N) two-pointer search for each, the final complexity is 
+𝑂
+(
+𝑁
+2
+)
+O(N 
+2
+ )—a significant improvement over the cubic 
+𝑂
+(
+𝑁
+3
+)
+O(N 
+3
+ ) approach.

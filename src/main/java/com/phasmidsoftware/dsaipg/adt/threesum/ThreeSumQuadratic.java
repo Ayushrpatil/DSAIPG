@@ -45,12 +45,33 @@ public class ThreeSumQuadratic implements ThreeSum {
      * Get a list of Triples such that the middle index is the given value j.
      *
      * @param j the index of the middle value.
-     * @return a Triple such that
+     * @return a list of Triples such that a[i] + a[j] + a[k] = 0.
      */
-     List<Triple> getTriples(int j) {
-         List<Triple> triples = new ArrayList<>();
-        // TO BE IMPLEMENTED  : for each candidate, test if a[i] + a[j] + a[k] = 0.
-throw new RuntimeException("implementation missing");
+    List<Triple> getTriples(int j) {
+        List<Triple> triples = new ArrayList<>();
+        int target = -a[j]; // Since a[i] + a[j] + a[k] = 0 => a[i] + a[k] = -a[j]
+        int i = 0;
+        int k = length - 1;
+
+        while (i < j && j < k) {
+            int sum = a[i] + a[k];
+            if (sum < target) {
+                i++; // Move the left pointer to increase the sum
+            } else if (sum > target) {
+                k--; // Move the right pointer to decrease the sum
+            } else {
+                // Found a valid triple
+                triples.add(new Triple(a[i], a[j], a[k]));
+                i++;
+                k--;
+
+                // Skip duplicates to ensure unique triples
+                while (i < j && a[i] == a[i - 1]) i++;
+                while (j < k && a[k] == a[k + 1]) k--;
+            }
+        }
+
+        return triples;
     }
 
     private final int[] a;
