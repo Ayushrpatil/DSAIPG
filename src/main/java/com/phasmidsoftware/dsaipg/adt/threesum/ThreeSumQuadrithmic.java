@@ -81,14 +81,14 @@ class ThreeSumQuadrithmic implements ThreeSum {
         while (low <= high) {
             int mid = low + (high - low) / 2;
             if (a[mid] == target) {
-                return mid; // Target found
+                return mid;
             } else if (a[mid] < target) {
-                low = mid + 1; // Search in the right half
+                low = mid + 1;
             } else {
-                high = mid - 1; // Search in the left half
+                high = mid - 1;
             }
         }
-        return -1; // Target not found
+        return -1;
     }
 
     private final int[] a;

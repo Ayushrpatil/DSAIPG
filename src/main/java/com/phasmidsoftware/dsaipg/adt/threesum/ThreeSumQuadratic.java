@@ -49,23 +49,23 @@ public class ThreeSumQuadratic implements ThreeSum {
      */
     List<Triple> getTriples(int j) {
         List<Triple> triples = new ArrayList<>();
-        int target = -a[j]; // Since a[i] + a[j] + a[k] = 0 => a[i] + a[k] = -a[j]
+        int target = -a[j];
         int i = 0;
         int k = length - 1;
 
         while (i < j && j < k) {
             int sum = a[i] + a[k];
             if (sum < target) {
-                i++; // Move the left pointer to increase the sum
+                i++;
             } else if (sum > target) {
-                k--; // Move the right pointer to decrease the sum
+                k--;
             } else {
-                // Found a valid triple
+
                 triples.add(new Triple(a[i], a[j], a[k]));
                 i++;
                 k--;
 
-                // Skip duplicates to ensure unique triples
+
                 while (i < j && a[i] == a[i - 1]) i++;
                 while (j < k && a[k] == a[k + 1]) k--;
             }
