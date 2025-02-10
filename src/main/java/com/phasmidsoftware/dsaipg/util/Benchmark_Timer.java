@@ -11,6 +11,9 @@ import java.util.function.UnaryOperator;
 
 import static com.phasmidsoftware.dsaipg.util.Utilities.formatWhole;
 
+import java.util.Arrays;
+import java.util.Random;
+
 /**
  * This class implements a simple Benchmark utility for measuring the running time of algorithms.
  * It is part of the repository for the INFO6205 class, taught by Prof. Robin Hillyard
@@ -124,4 +127,74 @@ public class Benchmark_Timer<T> implements Benchmark<T> {
     private final Consumer<T> fPost;
 
     final static LazyLogger logger = new LazyLogger(Benchmark_Timer.class);
+
+    private static Random random = new Random();
+
+    public static void main(String[] args) {
+        int initialSize = 128; // Starting size of the array
+
+        for (int i = 0; i < 5; i++) {
+            int size = initialSize << i; // Double the array size in each iteration
+            Integer[] randomArray = createRandomArray(size);
+            Integer[] sortedArray = createSortedArray(size);
+            Integer[] partiallyOrderedArray = createPartiallyOrderedArray(size);
+            Integer[] reversedArray = createReversedArray(size);
+
+            System.out.println("Array size: " + size);
+            benchmark("Random Array", randomArray);
+            benchmark("Sorted Array", sortedArray);
+            benchmark("Partially Ordered Array", partiallyOrderedArray);
+            benchmark("Reversed Array", reversedArray);
+        }
+    }
+
+    private static void benchmark(String description, Integer[] array) {
+        Benchmark_Timer<Integer[]> timer = new Benchmark_Timer<>(description, null, arr -> insertionSort(arr), null);
+        double time = timer.runFromSupplier(() -> Arrays.copyOf(array, array.length), 10);
+        System.out.println(description + ": " + time + " ms");
+    }
+
+    private static Integer[] createRandomArray(int size) {
+        return random.ints(size, 0, 1000).boxed().toArray(Integer[]::new);
+    }
+
+    private static Integer[] createSortedArray(int size) {
+        Integer[] array = createRandomArray(size);
+        Arrays.sort(array);
+        return array;
+    }
+
+    private static Integer[] createPartiallyOrderedArray(int size) {
+        Integer[] array = createRandomArray(size);
+        for (int i = 0; i < size - 1; i += 2) {
+            if (array[i] > array[i + 1]) {
+                int temp = array[i];
+                array[i] = array[i + 1];
+                array[i + 1] = temp;
+            }
+        }
+        return array;
+    }
+
+    private static Integer[] createReversedArray(int size) {
+        Integer[] array = createSortedArray(size);
+        for (int i = 0; i < size / 2; i++) {
+            int temp = array[i];
+            array[i] = array[size - i - 1];
+            array[size - i - 1] = temp;
+        }
+        return array;
+    }
+
+    private static void insertionSort(Integer[] array) {
+        for (int i = 1; i < array.length; i++) {
+            int current = array[i];
+            int j = i - 1;
+            while (j >= 0 && array[j] > current) {
+                array[j + 1] = array[j];
+                j--;
+            }
+            array[j + 1] = current;
+        }
+    }
 }

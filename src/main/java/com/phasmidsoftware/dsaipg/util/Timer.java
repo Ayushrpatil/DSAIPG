@@ -65,9 +65,36 @@ public class Timer {
      */
     public <T, U> double repeat(int n, boolean warmup, Supplier<T> supplier, Function<T, U> function, UnaryOperator<T> preFunction, Consumer<U> postFunction) {
         // TO BE IMPLEMENTED : note that the timer is running when this method is called and should still be running when it returns.
-         return 0;
+        if (warmup) {
+            for (int i = 0; i < 250; i++) { // Increased warmup iterations
+                T input = supplier.get();
+                if (preFunction != null) input = preFunction.apply(input);
+                U result = function.apply(input);
+                if (postFunction != null) postFunction.accept(result);
+            }
+        }
+
+        // Timing phase
+        long totalTime = 0;
+        for (int i = 0; i < n; i++) {
+            T input = supplier.get();
+            if (preFunction != null) input = preFunction.apply(input);
+
+            long startTime = getClock(); // Start timing
+            U result = function.apply(input);
+            long endTime = getClock(); // End timing
+
+            if (postFunction != null) postFunction.accept(result);
+
+            totalTime += (endTime - startTime); // Accumulate time for this lap
+            laps++;
+        }
+
+        // Calculate average time per lap
+        return (laps == 0) ? 0 : toMillisecs(totalTime) / laps;
         // END SOLUTION
     }
+
 
     /**
      * Updates the status display by printing progress markers or a decrement value based on the input parameters.
@@ -106,6 +133,7 @@ public class Timer {
      * @throws TimerException if this Timer is running.
      */
     public double meanLapTime() {
+        if (laps == 0) return 0;
         if (running) throw new TimerException();
         return toMillisecs(ticks) / laps;
     }
@@ -155,9 +183,10 @@ public class Timer {
      */
     public void pause() {
         pauseAndLap();
-        laps--;
+        laps = Math.max(0, laps - 1);
         doTrace(() -> "pause timer");
     }
+
 
     /**
      * Method to yield the total number of milliseconds elapsed.
@@ -239,8 +268,8 @@ public class Timer {
      * @return the number of ticks for the system clock. Currently defined as nano time.
      */
     private static long getClock() {
-        // TO BE IMPLEMENTED 
-         return 0;
+        // TO BE IMPLEMENTED
+        return System.nanoTime();
         // END SOLUTION
     }
 
@@ -252,10 +281,11 @@ public class Timer {
      * @return the corresponding number of milliseconds.
      */
     private static double toMillisecs(long ticks) {
-        // TO BE IMPLEMENTED 
-         return 0;
+        // TO BE IMPLEMENTED
+        return ticks / 1_000_000.0;
         // END SOLUTION
     }
+
 
     final static LazyLogger logger = new LazyLogger(Timer.class);
 
