@@ -131,10 +131,10 @@ public class Benchmark_Timer<T> implements Benchmark<T> {
     private static Random random = new Random();
 
     public static void main(String[] args) {
-        int initialSize = 128; // Starting size of the array
+        int initialSize = 128;
 
         for (int i = 0; i < 5; i++) {
-            int size = initialSize << i; // Double the array size in each iteration
+            int size = initialSize << i; 
             Integer[] randomArray = createRandomArray(size);
             Integer[] sortedArray = createSortedArray(size);
             Integer[] partiallyOrderedArray = createPartiallyOrderedArray(size);

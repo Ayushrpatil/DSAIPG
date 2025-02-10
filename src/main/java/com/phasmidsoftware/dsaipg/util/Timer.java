@@ -66,7 +66,7 @@ public class Timer {
     public <T, U> double repeat(int n, boolean warmup, Supplier<T> supplier, Function<T, U> function, UnaryOperator<T> preFunction, Consumer<U> postFunction) {
         // TO BE IMPLEMENTED : note that the timer is running when this method is called and should still be running when it returns.
         if (warmup) {
-            for (int i = 0; i < 250; i++) { // Increased warmup iterations
+            for (int i = 0; i < 100; i++) { // Controlled warmup iterations
                 T input = supplier.get();
                 if (preFunction != null) input = preFunction.apply(input);
                 U result = function.apply(input);
@@ -74,8 +74,12 @@ public class Timer {
             }
         }
 
+        // Ensure Timer is running
+        if (!running) resume();
+
         // Timing phase
         long totalTime = 0;
+        int executedLaps = 0; // Track valid laps separately
         for (int i = 0; i < n; i++) {
             T input = supplier.get();
             if (preFunction != null) input = preFunction.apply(input);
@@ -86,12 +90,15 @@ public class Timer {
 
             if (postFunction != null) postFunction.accept(result);
 
-            totalTime += (endTime - startTime); // Accumulate time for this lap
-            laps++;
+            totalTime += (endTime - startTime); // Accumulate time
+            executedLaps++;
+            lap(); // Increment official lap count
         }
 
+        pause(); // Stop timer properly
+
         // Calculate average time per lap
-        return (laps == 0) ? 0 : toMillisecs(totalTime) / laps;
+        return (executedLaps == 0) ? 0 : toMillisecs(totalTime) / executedLaps;
         // END SOLUTION
     }
 
