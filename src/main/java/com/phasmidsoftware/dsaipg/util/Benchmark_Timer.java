@@ -4,15 +4,16 @@
 
 package com.phasmidsoftware.dsaipg.util;
 
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 
 import static com.phasmidsoftware.dsaipg.util.Utilities.formatWhole;
-
-import java.util.Arrays;
-import java.util.Random;
 
 /**
  * This class implements a simple Benchmark utility for measuring the running time of algorithms.
@@ -128,73 +129,101 @@ public class Benchmark_Timer<T> implements Benchmark<T> {
 
     final static LazyLogger logger = new LazyLogger(Benchmark_Timer.class);
 
-    private static Random random = new Random();
+    private static final Random random = new Random();
+    private static final int M = 4095; // Max heap size
+    private static final int INSERTIONS = 16000;
+    private static final int REMOVALS = 4000;
 
     public static void main(String[] args) {
-        int initialSize = 128;
+        System.out.println("\n--- Heap Benchmarking ---");
 
-        for (int i = 0; i < 5; i++) {
-            int size = initialSize << i; 
-            Integer[] randomArray = createRandomArray(size);
-            Integer[] sortedArray = createSortedArray(size);
-            Integer[] partiallyOrderedArray = createPartiallyOrderedArray(size);
-            Integer[] reversedArray = createReversedArray(size);
+        // Define heap implementations
+        List<Supplier<PriorityQueue<Integer>>> heapSuppliers = Arrays.asList(
+                () -> new PriorityQueue<>(M, Comparator.naturalOrder()),  // Binary Heap
+                () -> new PriorityQueue<>(M, Comparator.naturalOrder())  // Binary Heap with Floyd's Trick
+        );
 
-            System.out.println("Array size: " + size);
-            benchmark("Random Array", randomArray);
-            benchmark("Sorted Array", sortedArray);
-            benchmark("Partially Ordered Array", partiallyOrderedArray);
-            benchmark("Reversed Array", reversedArray);
+        List<String> heapNames = Arrays.asList("BinaryHeap", "BinaryHeapFloyd");
+
+        // Lists to store benchmark results
+        List<Double> insertionTimes = new ArrayList<>();
+        List<Double> removalTimes = new ArrayList<>();
+
+        for (int i = 0; i < heapSuppliers.size(); i++) {
+            String heapName = heapNames.get(i);
+            Supplier<PriorityQueue<Integer>> heapSupplier = heapSuppliers.get(i);
+
+            // Benchmark Insertions
+            Benchmark_Timer<PriorityQueue<Integer>> insertionBenchmark = new Benchmark_Timer<>(
+                    heapName + " Insertions",
+                    heap -> {
+                        PriorityQueue<Integer> heapInstance = heapSupplier.get();
+                        for (int j = 0; j < INSERTIONS; j++) {
+                            if (heapInstance.size() >= M) {
+                                heapInstance.poll(); // Remove element if heap is full
+                            }
+                            heapInstance.add(random.nextInt());
+                        }
+                    }
+            );
+            double insertionTime = insertionBenchmark.runFromSupplier(heapSupplier, 10);
+            insertionTimes.add(insertionTime);
+
+            // Benchmark Removals and Track Spilled Elements
+            Benchmark_Timer<PriorityQueue<Integer>> removalBenchmark = new Benchmark_Timer<>(
+                    heapName + " Removals",
+                    heap -> {
+                        PriorityQueue<Integer> heapInstance = heapSupplier.get();
+                        List<Integer> spilled = new ArrayList<>();
+
+                        for (int j = 0; j < INSERTIONS; j++) {
+                            int value = random.nextInt();
+                            if (heapInstance.size() >= M) {
+                                spilled.add(heapInstance.poll());
+                            }
+                            heapInstance.add(value);
+                        }
+
+                        for (int j = 0; j < REMOVALS; j++) {
+                            heapInstance.poll();
+                        }
+
+                        int maxSpilled = spilled.stream().max(Integer::compare).orElse(Integer.MIN_VALUE);
+                        System.out.println(heapName + " max spilled: " + maxSpilled);
+                    }
+            );
+            double removalTime = removalBenchmark.runFromSupplier(heapSupplier, 10);
+            removalTimes.add(removalTime);
+
+            // Print Benchmark Results
+            System.out.println(heapName + " - Insertion Time: " + insertionTime + " ms");
+            System.out.println(heapName + " - Removal Time: " + removalTime + " ms");
         }
+
+        // Export results to CSV
+        exportToCSV(heapNames, insertionTimes, removalTimes);
     }
 
-    private static void benchmark(String description, Integer[] array) {
-        Benchmark_Timer<Integer[]> timer = new Benchmark_Timer<>(description, null, arr -> insertionSort(arr), null);
-        double time = timer.runFromSupplier(() -> Arrays.copyOf(array, array.length), 10);
-        System.out.println(description + ": " + time + " ms");
-    }
+    /**
+     * Exports the benchmark results to a CSV file.
+     *
+     * @param heapNames      The names of the heap implementations.
+     * @param insertionTimes The insertion times for each heap.
+     * @param removalTimes   The removal times for each heap.
+     */
+    private static void exportToCSV(List<String> heapNames, List<Double> insertionTimes, List<Double> removalTimes) {
+        try (PrintWriter writer = new PrintWriter(new File("benchmark_results.csv"))) {
+            // Write CSV header
+            writer.println("HeapName,InsertionTime,RemovalTime");
 
-    private static Integer[] createRandomArray(int size) {
-        return random.ints(size, 0, 1000).boxed().toArray(Integer[]::new);
-    }
-
-    private static Integer[] createSortedArray(int size) {
-        Integer[] array = createRandomArray(size);
-        Arrays.sort(array);
-        return array;
-    }
-
-    private static Integer[] createPartiallyOrderedArray(int size) {
-        Integer[] array = createRandomArray(size);
-        for (int i = 0; i < size - 1; i += 2) {
-            if (array[i] > array[i + 1]) {
-                int temp = array[i];
-                array[i] = array[i + 1];
-                array[i + 1] = temp;
+            // Write data rows
+            for (int i = 0; i < heapNames.size(); i++) {
+                writer.println(heapNames.get(i) + "," + insertionTimes.get(i) + "," + removalTimes.get(i));
             }
-        }
-        return array;
-    }
 
-    private static Integer[] createReversedArray(int size) {
-        Integer[] array = createSortedArray(size);
-        for (int i = 0; i < size / 2; i++) {
-            int temp = array[i];
-            array[i] = array[size - i - 1];
-            array[size - i - 1] = temp;
-        }
-        return array;
-    }
-
-    private static void insertionSort(Integer[] array) {
-        for (int i = 1; i < array.length; i++) {
-            int current = array[i];
-            int j = i - 1;
-            while (j >= 0 && array[j] > current) {
-                array[j + 1] = array[j];
-                j--;
-            }
-            array[j + 1] = current;
+            System.out.println("Benchmark results exported to benchmark_results.csv");
+        } catch (FileNotFoundException e) {
+            System.err.println("Error writing to CSV file: " + e.getMessage());
         }
     }
 }
