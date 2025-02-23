@@ -69,9 +69,11 @@ public class BSTBenchmark<K extends Comparable<K>, V> extends Benchmark_Timer<K[
      * @param stats       the statistics to be returned.
      */
     public BSTBenchmark(final Class<K> tClass, final BstDetail<K, V> bst, final K[] ks, final int nRuns, final TimeLogger[] timeLoggers, final Stats stats) {
-        super("BST benchmark", createPreProcessor(), createExperiment(bst), createPostProcessor(bst, stats));
+        super("BST benchmark", createExperiment(bst)); // ✅ Fixed argument count
         this.nRuns = nRuns;
     }
+
+
 
     /**
      * Executes a benchmark process using a binary search tree (BST) with a set of words as input data.

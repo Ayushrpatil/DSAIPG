@@ -1,255 +1,203 @@
 package com.phasmidsoftware.dsaipg.adt.pq;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Collections;
 
-/**
- * Implementation of a Fibonacci Heap.
- * Supports insert, extractMin, decreaseKey, and delete operations.
- */
-public class FibonacciHeap<T> {
-    private Node<T> min;
-    private int size;
-    private final Comparator<T> comparator;
+public class FibonacciHeap<T extends Comparable<T>> {
+    private Node<T> min = null; // Pointer to the minimum node in the heap
+    private int size = 0; // Number of elements in the heap
+    private List<T> spilledElements = new ArrayList<>(); // Track spilled elements
 
-    public FibonacciHeap(Comparator<T> comparator) {
-        this.comparator = comparator;
-    }
-
-    /**
-     * Inner class for the Fibonacci Heap node.
-     */
     private static class Node<T> {
-        T key;
-        Node<T> parent;
-        Node<T> child;
-        Node<T> left;
-        Node<T> right;
-        int degree;
+        T value;
+        Node<T> prev, next, child, parent;
         boolean mark;
+        int degree;
 
-        Node(T key) {
-            this.key = key;
-            this.left = this;
-            this.right = this;
+        public Node(T value) {
+            this.value = value;
+            this.prev = this;
+            this.next = this; // Circular doubly linked list
         }
     }
 
-    /**
-     * Inserts a new element into the heap.
-     *
-     * @param key Element to insert
-     * @return The inserted node
-     */
-    public Node<T> insert(T key) {
-        Node<T> newNode = new Node<>(key);
-        min = mergeLists(min, newNode);
+    public boolean isEmpty() {
+        return min == null;
+    }
+
+    public void clear() {
+        min = null;
+        size = 0;
+        spilledElements.clear();
+    }
+
+    public int size() {
+        return size;
+    }
+
+    public Node<T> insert(T value) {
+        Node<T> node = new Node<>(value);
+        min = mergeLists(min, node);
         size++;
-        return newNode;
-    }
 
-    /**
-     * Extracts the minimum element from the heap.
-     *
-     * @return The minimum element
-     */
-    public T extractMin() {
-        if (min == null) return null;
-
-        Node<T> oldMin = min;
-
-        // Merge children of min into root list
-        if (oldMin.child != null) {
-            Node<T> child = oldMin.child;
-            do {
-                child.parent = null;
-                child = child.right;
-            } while (child != oldMin.child);
-
-            mergeLists(min, oldMin.child);
+        if (size > 4095) {
+            T spilledElement = removeMin();
+            if (spilledElement != null) {
+                spilledElements.add(spilledElement);
+                System.out.println("Fibonacci Heap - Spilled element added: " + spilledElement);
+            }
         }
 
-        // Remove min from root list
-        if (oldMin.right == oldMin) {
+
+        return node;
+    }
+
+    public T removeMin() {
+        if (isEmpty()) return null;
+
+        Node<T> minNode = this.min;
+        size--;
+
+        if (size >= 4095 && minNode != null) {
+            spilledElements.add(minNode.value);
+            System.out.println("Fibonacci Heap - Spilled element added: " + minNode.value);
+        }
+
+
+        if (minNode.next == minNode) {
             min = null;
         } else {
-            min = oldMin.right;
-            removeNode(oldMin);
+            minNode.prev.next = minNode.next;
+            minNode.next.prev = minNode.prev;
+            min = minNode.next;
+        }
+
+        if (minNode.child != null) {
+            Node<T> child = minNode.child;
+            do {
+                child.parent = null;
+                child = child.next;
+            } while (child != minNode.child);
+            min = mergeLists(min, minNode.child);
+        }
+
+        if (!isEmpty()) {
             consolidate();
         }
 
-        size--;
-        return oldMin.key;
+        return minNode.value;
     }
 
-    /**
-     * Decreases the key of a node.
-     *
-     * @param node The node to decrease
-     * @param newKey The new key value
-     */
-    public void decreaseKey(Node<T> node, T newKey) {
-        if (comparator.compare(newKey, node.key) > 0) {
-            throw new IllegalArgumentException("New key is greater than current key");
-        }
-        node.key = newKey;
-        Node<T> parent = node.parent;
+    private Node<T> mergeLists(Node<T> a, Node<T> b) {
+        if (a == null) return b;
+        if (b == null) return a;
 
-        if (parent != null && comparator.compare(node.key, parent.key) < 0) {
-            cut(node, parent);
-            cascadingCut(parent);
-        }
+        Node<T> aNext = a.next;
+        Node<T> bNext = b.next;
 
-        if (comparator.compare(node.key, min.key) < 0) {
-            min = node;
-        }
+        a.next = bNext;
+        bNext.prev = a;
+
+        b.next = aNext;
+        aNext.prev = b;
+
+        return (a.value.compareTo(b.value) < 0) ? a : b;
     }
 
-    /**
-     * Deletes a node by decreasing its key to minimum and extracting it.
-     */
-    public void delete(Node<T> node) {
-        decreaseKey(node, min.key);
-        extractMin();
-    }
-
-    /**
-     * Merges two Fibonacci heaps.
-     */
-    public void union(FibonacciHeap<T> other) {
-        min = mergeLists(min, other.min);
-        size += other.size;
-        other.min = null;
-        other.size = 0;
-    }
-
-    /**
-     * Consolidates trees to optimize heap structure.
-     */
     private void consolidate() {
-        Map<Integer, Node<T>> degreeTable = new HashMap<>();
-        List<Node<T>> rootList = new ArrayList<>();
+        int maxDegree = (int) Math.ceil(Math.log(size) / Math.log(2)) + 5;
 
-        Node<T> x = min;
-        if (x != null) {
+        // Use ArrayList and ensure it grows dynamically when needed
+        List<Node<T>> degreeTable = new ArrayList<>(Collections.nCopies(maxDegree, null));
+
+        // Step 1: Collect all nodes in the root list
+        List<Node<T>> rootList = new ArrayList<>();
+        Node<T> current = min;
+
+        if (current != null) {
             do {
-                rootList.add(x);
-                x = x.right;
-            } while (x != min);
+                rootList.add(current);
+                current = current.next;
+            } while (current != null && current != min);
         }
 
+        // Step 2: Perform degree-wise consolidation
         for (Node<T> node : rootList) {
             int degree = node.degree;
 
-            while (degreeTable.containsKey(degree)) {
-                Node<T> other = degreeTable.remove(degree);
+            while (degree >= degreeTable.size()) {
+                degreeTable.add(null); // Ensure enough capacity
+            }
 
-                if (comparator.compare(other.key, node.key) < 0) {
+            // Merge trees with the same degree
+            while (degreeTable.get(degree) != null) {
+                Node<T> other = degreeTable.get(degree);
+
+                if (other.value.compareTo(node.value) < 0) {
                     Node<T> temp = node;
                     node = other;
                     other = temp;
                 }
 
-                linkHeaps(other, node);
+                // Link other under node (making node the new parent)
+                linkTrees(other, node);
+                degreeTable.set(degree, null);
                 degree++;
+
+                // Ensure the list is large enough before using .set()
+                while (degree >= degreeTable.size()) {
+                    degreeTable.add(null);
+                }
             }
 
-            degreeTable.put(degree, node);
+            degreeTable.set(degree, node);
         }
 
+        // Step 3: Rebuild the root list and find new minimum
         min = null;
-        for (Node<T> node : degreeTable.values()) {
-            min = mergeLists(min, node);
+        for (Node<T> node : degreeTable) {
+            if (node != null) {
+                if (min == null || node.value.compareTo(min.value) < 0) {
+                    min = node;
+                }
+            }
         }
     }
 
-    /**
-     * Links two trees of the same degree.
-     */
-    private void linkHeaps(Node<T> child, Node<T> parent) {
-        removeNode(child);
-        child.left = child.right = child;
-        parent.child = mergeLists(parent.child, child);
+
+
+
+
+    private void linkTrees(Node<T> child, Node<T> parent) {
+        child.next.prev = child.prev;
+        child.prev.next = child.next;
+
         child.parent = parent;
-        parent.degree++;
+        child.next = child.prev = child;
         child.mark = false;
-    }
 
-    /**
-     * Cuts a node from its parent.
-     */
-    private void cut(Node<T> node, Node<T> parent) {
-        removeNode(node);
-        parent.degree--;
-        min = mergeLists(min, node);
-        node.parent = null;
-        node.mark = false;
-    }
-
-    /**
-     * Cascading cut for maintaining Fibonacci heap properties.
-     */
-    private void cascadingCut(Node<T> node) {
-        Node<T> parent = node.parent;
-        if (parent != null) {
-            if (!node.mark) {
-                node.mark = true;
-            } else {
-                cut(node, parent);
-                cascadingCut(parent);
-            }
-        }
-    }
-
-    /**
-     * Removes a node from the circular doubly linked list.
-     */
-    private void removeNode(Node<T> node) {
-        if (node.right == node) {
-            node.parent.child = null;
+        if (parent.child == null) {
+            parent.child = child;
         } else {
-            node.left.right = node.right;
-            node.right.left = node.left;
-            if (node.parent != null && node.parent.child == node) {
-                node.parent.child = node.right;
-            }
+            child.next = parent.child;
+            child.prev = parent.child.prev;
+            parent.child.prev.next = child;
+            parent.child.prev = child;
         }
-        node.left = node.right = node;
+
+        parent.degree++;
     }
 
-    /**
-     * Merges two circular doubly linked lists.
-     */
-    private Node<T> mergeLists(Node<T> a, Node<T> b) {
-        if (a == null) return b;
-        if (b == null) return a;
-
-        Node<T> temp = a.right;
-        a.right = b.right;
-        a.right.left = a;
-        b.right = temp;
-        b.right.left = b;
-
-        return comparator.compare(a.key, b.key) < 0 ? a : b;
+    public T getHighestPrioritySpilledElement() {
+        if (spilledElements == null || spilledElements.isEmpty()) {
+            return null;
+        }
+        return spilledElements.stream().max(Comparable::compareTo).orElse(null);
     }
 
-    /**
-     * @return True if heap is empty.
-     */
-    public boolean isEmpty() {
-        return min == null;
+    public int getSpilledElementsCount() {
+        return (spilledElements == null) ? 0 : spilledElements.size();
     }
 
-    /**
-     * @return Current size of the heap.
-     */
-    public int size() {
-        return size;
-    }
-
-    /**
-     * @return The minimum element without extracting it.
-     */
-    public T getMin() {
-        return min == null ? null : min.key;
-    }
 }

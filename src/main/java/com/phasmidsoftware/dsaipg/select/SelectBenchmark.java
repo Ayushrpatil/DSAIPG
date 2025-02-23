@@ -135,14 +135,15 @@ public class SelectBenchmark {
      * @return the average execution time of the benchmark in milliseconds.
      */
     private static double doBenchmark(String description, Select<Integer> select, int k, Supplier<Integer[]> supplier, final int runs) {
-        final Benchmark<Integer[]> benchmark = new Benchmark_Timer<>(
+        final Benchmark<Integer[]> benchmark = (Benchmark<Integer[]>) new Benchmark_Timer<>(
                 description,
-                (xs) -> Arrays.copyOf(xs, xs.length),
-                (xs) -> select.select(xs, k),
-                null
+                (Integer[] xs) -> select.select(xs, k) // ✅ Correct function
         );
         return benchmark.runFromSupplier(supplier, runs);
     }
+
+
+
 
     /**
      * The main method serves as the entry point to execute benchmarks comparing

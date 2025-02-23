@@ -9,70 +9,60 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 
 /**
- * Priority Queue Data Structure which uses a binary heap.
+ * Priority Queue Data Structure which uses a binary or k-ary heap.
  * <p/>
- * It is unlimited in capacity, although there is no code to grow it after it has been constructed.
- * It can serve as a minPQ or a maxPQ (define "max" as either false or true, respectively).
+ * It supports different configurations:
+ * - Min/Max heap.
+ * - Binary (default) or 4-ary heap.
+ * - Floyd’s trick (optimized heapifying).
  * <p/>
- * It can support the root at index 1 or the root at index 2 variants.
+ * Implements typical heap operations: insert (`give`) and remove (`take`).
  * <p/>
- * It follows the code from Sedgewick and Wayne more or less. I have changed the names a bit. For example,
- * the methods to insert and remove the max (or min) element are called "give" and "take," respectively.
- * <p/>
- * It operates on arbitrary Object types which implies that it requires a Comparator to be passed in.
- * <p/>
- * For all details on usage, please see PriorityQueueTest.java
- *
- * @param <K>
+ * Requires a Comparator<K> to be passed in.
  */
 public class PriorityQueue<K> implements Iterable<K> {
 
     /**
      * Primary constructor that takes the max value, an actual array of elements, and a comparator.
      *
-     * @param max        whether or not this is a Maximum Priority Queue as opposed to a Minimum PQ.
-     * @param binHeap    a pre-formed array with length one greater than the required capacity.
-     * @param first      the index of the root element.
-     * @param last       the number of elements in binHeap
-     * @param comparator a comparator for the type K
-     * @param floyd      true if we use Floyd's trick
+     * @param max        Whether this is a Max Priority Queue (true) or Min PQ (false).
+     * @param binHeap    A pre-formed array with length one greater than the required capacity.
+     * @param first      The index of the root element.
+     * @param last       The number of elements in binHeap.
+     * @param comparator A comparator for the type K.
+     * @param floyd      True if we use Floyd's trick.
+     * @param kAry       The branching factor (2 for binary, 4 for 4-ary).
      */
-    public PriorityQueue(boolean max, Object[] binHeap, int first, int last, Comparator<K> comparator, boolean floyd) {
+    public PriorityQueue(boolean max, Object[] binHeap, int first, int last, Comparator<K> comparator, boolean floyd, int kAry) {
         this.max = max;
         this.first = first;
         this.comparator = comparator;
         this.last = last;
+        this.kAry = kAry;
         //noinspection unchecked
         this.binHeap = (K[]) binHeap;
         this.floyd = floyd;
     }
 
     /**
-     * Secondary constructor which takes only the priority queue's maximum capacity and a comparator
+     * Secondary constructor which takes only the priority queue's maximum capacity and a comparator.
      */
-    public PriorityQueue(int n, int first, boolean max, Comparator<K> comparator, boolean floyd) {
-        this(max, new Object[n + first], first, 0, comparator, floyd);
+    public PriorityQueue(int n, int first, boolean max, Comparator<K> comparator, boolean floyd, int kAry) {
+        this(max, new Object[n + first], first, 0, comparator, floyd, kAry);
     }
 
     /**
-     * Secondary constructor with predefined parameters.
+     * Default constructor for Binary Heap.
      */
     public PriorityQueue(int n, boolean max, Comparator<K> comparator, boolean floyd) {
-        this(n, 1, max, comparator, floyd);
+        this(n, 1, max, comparator, floyd, 2);
     }
 
     /**
-     * Constructor that assumes a default `false` for `floyd`.
+     * Constructor for a 4-ary heap.
      */
-    public PriorityQueue(int n, boolean max, Comparator<K> comparator) {
-        this(n, 1, max, comparator, false);
-    }
-
-    /**
-     * Constructor assuming default `true` for `max` and `floyd`.
-     */
-    public PriorityQueue(int n, Comparator<K> comparator) {
-        this(n, 1, true, comparator, true);
+    public PriorityQueue(int n, boolean max, Comparator<K> comparator, boolean floyd, boolean fourAry) {
+        this(n, 1, max, comparator, floyd, fourAry ? 4 : 2);
     }
 
     /**
@@ -83,14 +73,14 @@ public class PriorityQueue<K> implements Iterable<K> {
     }
 
     /**
-     * @return the number of elements actually stored in this Priority Queue
+     * @return the number of elements actually stored in this Priority Queue.
      */
     public int size() {
         return last;
     }
 
     /**
-     * Insert an element with the given key into this Priority Queue.
+     * Insert an element into this Priority Queue.
      */
     public void give(K key) {
         if (last == binHeap.length - first) last--;
@@ -166,10 +156,17 @@ public class PriorityQueue<K> implements Iterable<K> {
         int i = k;
         while (firstChild(i) <= last + first - 1) {
             int j = firstChild(i);
-            if (j < last + first - 1 && unordered(j, j + 1)) j++;
-            if (p.test(i, j)) break;
-            swap(i, j);
-            i = j;
+            int end = Math.min(j + kAry - 1, last + first - 1);
+
+            // Find the best child in a k-ary heap
+            int best = j;
+            for (int c = j + 1; c <= end; c++) {
+                if (unordered(best, c)) best = c;
+            }
+
+            if (p.test(i, best)) break;
+            swap(i, best);
+            i = best;
         }
         return i;
     }
@@ -187,14 +184,14 @@ public class PriorityQueue<K> implements Iterable<K> {
      * Get the index of the parent of the element at index k.
      */
     protected int parent(int k) {
-        return (k + 1 - first) / 2 + first - 1;
+        return (k + 1 - first) / kAry + first - 1;
     }
 
     /**
      * Get the index of the first child of the element at index k.
      */
     protected int firstChild(int k) {
-        return (k + 1 - first) * 2 + first - 1;
+        return (k + 1 - first) * kAry + first - 1;
     }
 
     /**
@@ -216,6 +213,7 @@ public class PriorityQueue<K> implements Iterable<K> {
     protected final K[] binHeap;
     protected int last;
     protected final boolean floyd;
+    protected final int kAry; // 2 for binary heap, 4 for 4-ary heap.
 
     public static void main(String[] args) {
         doMain();
